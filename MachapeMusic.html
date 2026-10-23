@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="es" class="dark h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MACHAPE Analytics & Music Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            spotify: {
+              green: '#1DB954',
+              hover: '#1ed760',
+              black: '#121212',
+              dark: '#181818',
+              card: '#282828',
+              light: '#3e3e3e',
+              subtext: '#a7a7a7'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #121212;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #282828;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3e3e3e;
+    }
+    /* Animated Audio Visualizer Bars */
+    .bar-anim {
+      animation: bounce 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes bounce {
+      0% { height: 4px; }
+      100% { height: 22px; }
+    }
+  </style>
+</head>
+<body class="bg-spotify-black text-white font-sans antialiased h-full flex flex-col overflow-hidden select-none">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Header / Top Bar -->
+  <header class="h-16 bg-spotify-dark border-b border-spotify-card/50 flex items-center justify-between px-4 md:px-6 z-20 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-full bg-spotify-green/20 flex items-center justify-center text-spotify-green">
+        <i class="fa-brands fa-spotify text-2xl"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg tracking-tight flex items-center gap-2">
+          Machape <span class="text-spotify-green">Pulse</span>
+        </h1>
+        <p class="text-xs text-spotify-subtext hidden sm:block">Dashboard Analytics & API Studio</p>
+      </div>
+    </div>
+
+    <!-- Status & Auth Controls -->
+    <div class="flex items-center space-x-3">
+      <!-- Connection Status Badge -->
+      <div id="connection-badge" class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/30">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+        <span id="badge-text">Modo Demo Activo</span>
+      </div>
+
+      <!-- Config Button -->
+      <button onclick="openConfigModal()" class="bg-spotify-card hover:bg-spotify-light text-white px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-2 border border-spotify-light/40">
+        <i class="fa-solid fa-gear text-spotify-green"></i>
+        <span class="hidden md:inline">Conexión API</span>
+      </button>
+
+      <!-- Logout / Demo Reset Button -->
+      <button id="auth-action-btn" onclick="toggleDemoMode()" class="bg-spotify-green hover:bg-spotify-hover text-black px-4 py-1.5 rounded-full text-xs font-bold transition shadow-md">
+        <i class="fa-solid fa-bolt mr-1"></i> Reiniciar
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar Navigation -->
+    <aside class="w-16 md:w-64 bg-spotify-dark border-r border-spotify-card/40 flex flex-col justify-between shrink-0">
+      <nav class="p-2 md:p-4 space-y-1">
+        <button onclick="switchTab('search')" id="nav-search" class="nav-btn active w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-semibold text-white bg-spotify-card border-l-4 border-spotify-green transition">
+          <i class="fa-solid fa-magnifying-glass text-lg w-6 text-center"></i>
+          <span class="hidden md:inline">Buscador</span>
+        </button>
+
+        <button onclick="switchTab('features')" id="nav-features" class="nav-btn w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-semibold text-spotify-subtext hover:text-white hover:bg-spotify-card/50 transition">
+          <i class="fa-solid fa-chart-radar text-lg w-6 text-center text-spotify-green"></i>
+          <span class="hidden md:inline">Analizador de Audio</span>
+        </button>
+
+        <button onclick="switchTab('top')" id="nav-top" class="nav-btn w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-semibold text-spotify-subtext hover:text-white hover:bg-spotify-card/50 transition">
+          <i class="fa-solid fa-trophy text-lg w-6 text-center text-yellow-400"></i>
+          <span class="hidden md:inline">Top Estadísticas</span>
+        </button>
+
+        <button onclick="switchTab('playlists')" id="nav-playlists" class="nav-btn w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-semibold text-spotify-subtext hover:text-white hover:bg-spotify-card/50 transition">
+          <i class="fa-solid fa-list-ul text-lg w-6 text-center text-blue-400"></i>
+          <span class="hidden md:inline">Playlists</span>
+        </button>
+
+        <button onclick="switchTab('docs')" id="nav-docs" class="nav-btn w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-semibold text-spotify-subtext hover:text-white hover:bg-spotify-card/50 transition">
+          <i class="fa-solid fa-book text-lg w-6 text-center text-purple-400"></i>
+          <span class="hidden md:inline">Guía API Spotify</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer Info -->
+      <div class="p-4 border-t border-spotify-card/40 hidden md:block">
+        <div class="bg-spotify-card/60 rounded-xl p-3 text-xs text-spotify-subtext">
+          <p class="font-medium text-white mb-1"><i class="fa-solid fa-shield-halved text-spotify-green mr-1"></i> OAuth 2.0 PKCE</p>
+          <p class="text-[11px] leading-relaxed">Conexión directa del cliente a Spotify sin servidor intermedio.</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-gradient-to-b from-spotify-dark/80 to-spotify-black" id="main-content">
+
+      <!-- ================= SECTION 1: SEARCH ================= -->
+      <section id="section-search" class="space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Explora la Música</h2>
+            <p class="text-spotify-subtext text-sm">Busca canciones, artistas y álbumes en el catálogo oficial.</p>
+          </div>
+          <!-- Search Bar -->
+          <div class="relative w-full md:w-96">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-spotify-subtext"></i>
+            <input type="text" id="search-input" onkeyup="handleSearchKey(event)" placeholder="¿Qué quieres escuchar hoy?" class="w-full bg-spotify-card border border-spotify-light/30 rounded-full pl-10 pr-10 py-2.5 text-sm text-white placeholder-spotify-subtext focus:outline-none focus:border-spotify-green transition">
+            <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 bg-spotify-green hover:bg-spotify-hover text-black w-7 h-7 rounded-full flex items-center justify-center transition">
+              <i class="fa-solid fa-arrow-right text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Type Tabs -->
+        <div class="flex space-x-2 border-b border-spotify-card pb-3">
+          <button onclick="setSearchFilter('all')" id="filter-all" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-black transition">Todos</button>
+          <button onclick="setSearchFilter('track')" id="filter-track" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-spotify-card text-spotify-subtext hover:text-white transition">Canciones</button>
+          <button onclick="setSearchFilter('artist')" id="filter-artist" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-spotify-card text-spotify-subtext hover:text-white transition">Artistas</button>
+        </div>
+
+        <!-- Results Grid -->
+        <div id="search-results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- ================= SECTION 2: AUDIO FEATURES VISUALIZER ================= -->
+      <section id="section-features" class="space-y-6 hidden">
+        <div>
+          <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Analizador de Audio</h2>
+          <p class="text-spotify-subtext text-sm">Inspecciona los parámetros acústicos y métricas de audio generadas por Spotify AI.</p>
+        </div>
+
+        <!-- Track Selector Banner -->
+        <div class="bg-spotify-card/80 border border-spotify-light/20 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row items-center gap-6">
+          <img id="feat-track-cover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop" class="w-32 h-32 rounded-xl shadow-2xl object-cover shrink-0" alt="Cover">
+          <div class="flex-1 text-center md:text-left">
+            <span class="text-xs font-bold uppercase tracking-wider text-spotify-green">Canción Seleccionada</span>
+            <h3 id="feat-track-title" class="text-xl md:text-2xl font-bold mt-1">Blinding Lights</h3>
+            <p id="feat-track-artist" class="text-spotify-subtext text-sm">The Weeknd • After Hours</p>
+            
+            <div class="flex flex-wrap gap-2 mt-4 justify-center md:justify-start">
+              <span id="badge-tempo" class="px-3 py-1 bg-spotify-dark rounded-md text-xs font-mono text-spotify-green border border-spotify-light/30"><i class="fa-solid fa-drum mr-1"></i> 171 BPM</span>
+              <span id="badge-key" class="px-3 py-1 bg-spotify-dark rounded-md text-xs font-mono text-blue-400 border border-spotify-light/30"><i class="fa-solid fa-music mr-1"></i> Tono: F# Mayor</span>
+              <span id="badge-pop" class="px-3 py-1 bg-spotify-dark rounded-md text-xs font-mono text-yellow-400 border border-spotify-light/30"><i class="fa-solid fa-fire mr-1"></i> Popularidad: 95/100</span>
+            </div>
+          </div>
+          <button id="feat-play-btn" onclick="playCurrentAnalyzedTrack()" class="bg-spotify-green hover:bg-spotify-hover text-black w-12 h-12 rounded-full flex items-center justify-center transition shadow-lg shrink-0">
+            <i class="fa-solid fa-play text-lg ml-0.5"></i>
+          </button>
+        </div>
+
+        <!-- Visualizer Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Radar Chart -->
+          <div class="bg-spotify-dark p-5 rounded-2xl border border-spotify-card/60 flex flex-col items-center">
+            <h4 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-chart-pie text-spotify-green"></i> Perfil Acústico (Radar)
+            </h4>
+            <div class="w-full max-w-md aspect-square relative">
+              <canvas id="radarChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Feature Breakdown Cards -->
+          <div class="space-y-4 flex flex-col justify-between">
+            <div class="bg-spotify-dark p-5 rounded-2xl border border-spotify-card/60">
+              <h4 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-spotify-green"></i> Desglose de Atributos
+              </h4>
+              <div class="space-y-3" id="features-progress-container">
+                <!-- Dynamically filled bars -->
+              </div>
+            </div>
+
+            <!-- Feature Explanations -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-spotify-card/40 p-3 rounded-xl border border-spotify-light/10 text-xs">
+                <p class="font-bold text-spotify-green mb-1"><i class="fa-solid fa-child-reaching mr-1"></i> Bailabilidad</p>
+                <p class="text-spotify-subtext leading-tight">Qué tan adecuada es una pista para bailar según el ritmo, tempo y regularidad.</p>
+              </div>
+              <div class="bg-spotify-card/40 p-3 rounded-xl border border-spotify-light/10 text-xs">
+                <p class="font-bold text-yellow-400 mb-1"><i class="fa-solid fa-bolt mr-1"></i> Energía</p>
+                <p class="text-spotify-subtext leading-tight">Representa la intensidad perceptiva, velocidad y sonoridad de la canción.</p>
+              </div>
+              <div class="bg-spotify-card/40 p-3 rounded-xl border border-spotify-light/10 text-xs">
+                <p class="font-bold text-pink-400 mb-1"><i class="fa-solid fa-face-smile mr-1"></i> Positividad (Valence)</p>
+                <p class="text-spotify-subtext leading-tight">Mide la positividad musical transmitida (alegría/euforia vs tristeza/enojo).</p>
+              </div>
+              <div class="bg-spotify-card/40 p-3 rounded-xl border border-spotify-light/10 text-xs">
+                <p class="font-bold text-blue-400 mb-1"><i class="fa-solid fa-guitar mr-1"></i> Acusticidad</p>
+                <p class="text-spotify-subtext leading-tight">Confianza de si la pista fue creada con instrumentos acústicos no eléctricos.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 3: TOP STATS ================= -->
+      <section id="section-top" class="space-y-6 hidden">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Tus Estadísticas Top</h2>
+            <p class="text-spotify-subtext text-sm">Descubre tus hábitos de escucha clasificados por periodos.</p>
+          </div>
+
+          <!-- Time Range Selector -->
+          <div class="flex bg-spotify-card p-1 rounded-xl border border-spotify-light/20 self-start">
+            <button onclick="setTopTimeRange('short_term')" id="range-short" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-spotify-light transition">4 Semanas</button>
+            <button onclick="setTopTimeRange('medium_term')" id="range-medium" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-spotify-subtext hover:text-white transition">6 Meses</button>
+            <button onclick="setTopTimeRange('long_term')" id="range-long" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-spotify-subtext hover:text-white transition">Histórico</button>
+          </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div class="flex space-x-3 border-b border-spotify-card pb-3">
+          <button onclick="setTopType('tracks')" id="top-type-tracks" class="px-4 py-2 rounded-lg text-sm font-bold bg-spotify-green text-black transition">
+            <i class="fa-solid fa-music mr-2"></i>Canciones Top
+          </button>
+          <button onclick="setTopType('artists')" id="top-type-artists" class="px-4 py-2 rounded-lg text-sm font-bold bg-spotify-card text-spotify-subtext hover:text-white transition">
+            <i class="fa-solid fa-user-astronaut mr-2"></i>Artistas Top
+          </button>
+        </div>
+
+        <!-- Top Items List -->
+        <div id="top-items-container" class="space-y-2">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- ================= SECTION 4: PLAYLISTS ================= -->
+      <section id="section-playlists" class="space-y-6 hidden">
+        <div>
+          <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Explorador de Playlists</h2>
+          <p class="text-spotify-subtext text-sm">Navega por las colecciones de reproducciones destacadas.</p>
+        </div>
+
+        <!-- Playlists Cards Grid -->
+        <div id="playlists-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Selected Playlist Tracks Detail View -->
+        <div id="playlist-detail" class="mt-8 bg-spotify-dark rounded-2xl border border-spotify-card p-6 hidden">
+          <div class="flex justify-between items-center mb-4">
+            <h3 id="playlist-detail-title" class="text-xl font-bold text-spotify-green">Lista de Temas</h3>
+            <button onclick="closePlaylistDetail()" class="text-spotify-subtext hover:text-white text-xs bg-spotify-card px-3 py-1 rounded-full">
+              <i class="fa-solid fa-xmark mr-1"></i> Cerrar
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-spotify-subtext">
+              <thead class="border-b border-spotify-card text-xs uppercase text-spotify-subtext">
+                <tr>
+                  <th class="py-3 px-2">#</th>
+                  <th class="py-3 px-4">Título</th>
+                  <th class="py-3 px-4">Álbum</th>
+                  <th class="py-3 px-2 text-right"><i class="fa-regular fa-clock"></i></th>
+                </tr>
+              </thead>
+              <tbody id="playlist-tracks-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SECTION 5: API DOCUMENTATION & GUIDE ================= -->
+      <section id="section-docs" class="space-y-6 hidden">
+        <div>
+          <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Guía de Configuración Spotify API</h2>
+          <p class="text-spotify-subtext text-sm">Aprende a conectar tus propias credenciales en menos de 2 minutos.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-spotify-dark p-5 rounded-2xl border border-spotify-card">
+            <div class="w-8 h-8 rounded-full bg-spotify-green/20 text-spotify-green font-bold flex items-center justify-center mb-3">1</div>
+            <h3 class="font-bold text-white mb-2">Crear App Developer</h3>
+            <p class="text-xs text-spotify-subtext leading-relaxed">
+              Ingresa al <a href="https://developer.spotify.com/dashboard" target="_blank" class="text-spotify-green underline">Spotify Developer Dashboard</a>, inicia sesión y haz clic en <strong>"Create App"</strong>.
+            </p>
+          </div>
+
+          <div class="bg-spotify-dark p-5 rounded-2xl border border-spotify-card">
+            <div class="w-8 h-8 rounded-full bg-spotify-green/20 text-spotify-green font-bold flex items-center justify-center mb-3">2</div>
+            <h3 class="font-bold text-white mb-2">Configurar Redirect URI</h3>
+            <p class="text-xs text-spotify-subtext leading-relaxed mb-2">
+              En los ajustes de tu App en Spotify, añade la URL exacta de tu ubicación actual en el campo <strong>Redirect URIs</strong>:
+            </p>
+            <div class="bg-spotify-black p-2 rounded text-[11px] font-mono break-all text-gray-300 flex justify-between items-center">
+              <span id="doc-redirect-uri"></span>
+              <button onclick="copyRedirectUri()" class="text-spotify-green hover:text-white ml-2"><i class="fa-regular fa-copy"></i></button>
+            </div>
+          </div>
+
+          <div class="bg-spotify-dark p-5 rounded-2xl border border-spotify-card">
+            <div class="w-8 h-8 rounded-full bg-spotify-green/20 text-spotify-green font-bold flex items-center justify-center mb-3">3</div>
+            <h3 class="font-bold text-white mb-2">Ingresar Client ID</h3>
+            <p class="text-xs text-spotify-subtext leading-relaxed">
+              Copia el <strong>Client ID</strong> generado y pégalo en nuestro panel de configuración. ¡La autenticación PKCE se encargará del resto!
+            </p>
+          </div>
+        </div>
+
+        <div class="bg-spotify-card/40 border border-spotify-light/20 p-6 rounded-2xl">
+          <h3 class="font-bold text-lg mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-shield-halved text-spotify-green"></i> Ventajas de OAuth 2.0 PKCE en esta Web
+          </h3>
+          <ul class="text-xs text-spotify-subtext space-y-2 list-disc list-inside">
+            <li><strong>Cero Backend requerido:</strong> La clave secreta (Client Secret) nunca se expone en el código ni se transmite.</li>
+            <li><strong>Seguridad de extremo a extremo:</strong> Se genera un código de verificación criptográfico único para cada sesión de login.</li>
+            <li><strong>Modo Híbrido:</strong> Puedes volver al Modo Demo instantáneamente cuando lo desees sin perder tus configuraciones.</li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ================= FLOATING BOTTOM AUDIO PLAYER ================= -->
+  <footer class="h-20 bg-[#181818] border-t border-spotify-card/80 px-4 flex items-center justify-between z-30 shrink-0">
+    <!-- Currently Playing Info -->
+    <div class="flex items-center space-x-3 w-1/4">
+      <img id="player-cover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&h=100&fit=crop" class="w-12 h-12 rounded shadow-md object-cover" alt="Album Cover">
+      <div class="truncate">
+        <h4 id="player-title" class="text-xs font-semibold text-white truncate">Blinding Lights</h4>
+        <p id="player-artist" class="text-[11px] text-spotify-subtext truncate">The Weeknd</p>
+      </div>
+      <button class="text-spotify-subtext hover:text-spotify-green text-xs ml-2 hidden sm:block transition">
+        <i class="fa-regular fa-heart"></i>
+      </button>
+    </div>
+
+    <!-- Center Controls & Progress -->
+    <div class="flex flex-col items-center w-2/4 max-w-xl">
+      <!-- Playback buttons -->
+      <div class="flex items-center space-x-4 mb-1">
+        <button onclick="playPrevTrack()" class="text-spotify-subtext hover:text-white transition text-sm">
+          <i class="fa-solid fa-backward-step"></i>
+        </button>
+        <button id="player-play-btn" onclick="togglePlay()" class="bg-white hover:scale-105 text-black w-8 h-8 rounded-full flex items-center justify-center transition shadow">
+          <i id="player-play-icon" class="fa-solid fa-play text-xs ml-0.5"></i>
+        </button>
+        <button onclick="playNextTrack()" class="text-spotify-subtext hover:text-white transition text-sm">
+          <i class="fa-solid fa-forward-step"></i>
+        </button>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="w-full flex items-center space-x-2">
+        <span id="player-curr-time" class="text-[10px] font-mono text-spotify-subtext w-8 text-right">0:00</span>
+        <div class="flex-1 h-1 bg-spotify-card rounded-full overflow-hidden cursor-pointer group" onclick="seekAudio(event)">
+          <div id="player-progress-bar" class="h-full bg-white group-hover:bg-spotify-green transition-all w-0"></div>
+        </div>
+        <span id="player-dur-time" class="text-[10px] font-mono text-spotify-subtext w-8">0:30</span>
+      </div>
+    </div>
+
+    <!-- Right Controls / Audio Equalizer Simulation -->
+    <div class="flex items-center justify-end space-x-3 w-1/4">
+      <button onclick="switchTab('features')" title="Ver Análisis de esta canción" class="text-spotify-subtext hover:text-spotify-green text-sm transition hidden md:block">
+        <i class="fa-solid fa-chart-simple"></i>
+      </button>
+      
+      <!-- Simulated Equalizer Bars -->
+      <div id="eq-visualizer" class="hidden sm:flex items-end space-x-0.5 h-5 px-2">
+        <div class="w-1 bg-spotify-green rounded-t bar-anim" style="animation-delay: 0.1s;"></div>
+        <div class="w-1 bg-spotify-green rounded-t bar-anim" style="animation-delay: 0.4s;"></div>
+        <div class="w-1 bg-spotify-green rounded-t bar-anim" style="animation-delay: 0.2s;"></div>
+        <div class="w-1 bg-spotify-green rounded-t bar-anim" style="animation-delay: 0.6s;"></div>
+      </div>
+
+      <!-- Volume Slider -->
+      <div class="flex items-center space-x-2">
+        <i class="fa-solid fa-volume-high text-xs text-spotify-subtext"></i>
+        <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.7" oninput="changeVolume(this.value)" class="w-16 md:w-20 accent-spotify-green h-1 bg-spotify-card rounded cursor-pointer">
+      </div>
+    </div>
+  </footer>
+
+  <!-- HTML5 Audio Element for Preview Playback -->
+  <audio id="audio-element"></audio>
+
+  <!-- ================= CONFIGURATION / AUTH MODAL ================= -->
+  <div id="config-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-spotify-dark border border-spotify-card w-full max-w-lg rounded-2xl p-6 shadow-2xl relative space-y-5">
+      <button onclick="closeConfigModal()" class="absolute top-4 right-4 text-spotify-subtext hover:text-white">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-spotify-green/20 text-spotify-green flex items-center justify-center">
+          <i class="fa-solid fa-key text-lg"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-lg">Ajustes de API Spotify</h3>
+          <p class="text-xs text-spotify-subtext">Conecta tu propia cuenta o usa Access Tokens</p>
+        </div>
+      </div>
+
+      <!-- Redirect URI Display -->
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-spotify-subtext">Tu Redirect URI Actual:</label>
+        <div class="bg-spotify-black p-2.5 rounded-xl border border-spotify-light/20 flex justify-between items-center text-xs font-mono">
+          <span id="modal-redirect-uri" class="truncate text-gray-300"></span>
+          <button onclick="copyRedirectUri()" class="text-spotify-green hover:text-white px-2 py-1"><i class="fa-regular fa-copy"></i></button>
+        </div>
+      </div>
+
+      <!-- Option 1: PKCE Login -->
+      <div class="space-y-2 border-t border-spotify-card/80 pt-4">
+        <label class="text-xs font-bold text-white uppercase tracking-wider">Opción 1: OAuth PKCE (Recomendado)</label>
+        <input type="text" id="input-client-id" placeholder="Ingresa tu Spotify Client ID" class="w-full bg-spotify-card border border-spotify-light/30 rounded-xl px-3.5 py-2 text-xs text-white placeholder-spotify-subtext focus:outline-none focus:border-spotify-green">
+        <button onclick="initPKCEAuth()" class="w-full bg-spotify-green hover:bg-spotify-hover text-black font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+          <i class="fa-brands fa-spotify text-base"></i> Iniciar Sesión con Spotify
+        </button>
+      </div>
+
+      <!-- Option 2: Direct Token -->
+      <div class="space-y-2 border-t border-spotify-card/80 pt-4">
+        <label class="text-xs font-bold text-white uppercase tracking-wider">Opción 2: Access Token Directo</label>
+        <input type="text" id="input-direct-token" placeholder="Pega tu Access Token de Spotify Web Console" class="w-full bg-spotify-card border border-spotify-light/30 rounded-xl px-3.5 py-2 text-xs text-white placeholder-spotify-subtext focus:outline-none focus:border-spotify-green">
+        <button onclick="saveDirectToken()" class="w-full bg-spotify-card hover:bg-spotify-light text-white font-bold py-2 rounded-xl text-xs border border-spotify-light/30 transition">
+          Guardar Token Manual
+        </button>
+      </div>
+
+      <!-- Option 3: Reset to Demo Mode -->
+      <div class="border-t border-spotify-card/80 pt-3 flex justify-between items-center">
+        <span class="text-xs text-spotify-subtext">¿Solo quieres probar el Dashboard?</span>
+        <button onclick="enableDemoMode()" class="text-xs font-semibold text-amber-400 hover:underline">
+          Activar Modo Demo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    /* ================= MOCK DATA (DEMO MODE) ================= */
+    const DEMO_DATA = {
+      tracks: [
+        {
+          id: '1',
+          name: 'Blinding Lights',
+          artists: [{ name: 'The Weeknd' }],
+          album: { name: 'After Hours', images: [{ url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=400&fit=crop' }] },
+          preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+          duration_ms: 200000,
+          popularity: 95,
+          features: { danceability: 0.514, energy: 0.730, valence: 0.334, acousticness: 0.001, instrumentalness: 0.000, speechiness: 0.059, tempo: 171, key: 1 }
+        },
+        {
+          id: '2',
+          name: 'As It Was',
+          artists: [{ name: 'Harry Styles' }],
+          album: { name: 'Harry\'s House', images: [{ url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop' }] },
+          preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+          duration_ms: 167000,
+          popularity: 92,
+          features: { danceability: 0.520, energy: 0.731, valence: 0.662, acousticness: 0.342, instrumentalness: 0.001, speechiness: 0.055, tempo: 174, key: 9 }
+        },
+        {
+          id: '3',
+          name: 'Flowers',
+          artists: [{ name: 'Miley Cyrus' }],
+          album: { name: 'Endless Summer Vacation', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop' }] },
+          preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+          duration_ms: 200000,
+          popularity: 90,
+          features: { danceability: 0.707, energy: 0.681, valence: 0.646, acousticness: 0.063, instrumentalness: 0.000, speechiness: 0.066, tempo: 118, key: 0 }
+        },
+        {
+          id: '4',
+          name: 'Starboy',
+          artists: [{ name: 'The Weeknd', id: 'art1' }, { name: 'Daft Punk' }],
+          album: { name: 'Starboy', images: [{ url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=400&fit=crop' }] },
+          preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+          duration_ms: 230000,
+          popularity: 94,
+          features: { danceability: 0.679, energy: 0.587, valence: 0.486, acousticness: 0.141, instrumentalness: 0.000, speechiness: 0.276, tempo: 186, key: 7 }
+        },
+        {
+          id: '5',
+          name: 'Levitating',
+          artists: [{ name: 'Dua Lipa' }],
+          album: { name: 'Future Nostalgia', images: [{ url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop' }] },
+          preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
+          duration_ms: 203000,
+          popularity: 88,
+          features: { danceability: 0.702, energy: 0.825, valence: 0.915, acousticness: 0.008, instrumentalness: 0.000, speechiness: 0.060, tempo: 103, key: 6 }
+        },
+        {
+          id: '6',
+          name: 'Monaco',
+          artists: [{ name: 'Bad Bunny' }],
+          album: { name: 'Nadie Sabe Lo Que Va A Pasar Mañana', images: [{ url: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=400&fit=crop' }] },
+          preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
+          duration_ms: 267000,
+          popularity: 91,
+          features: { danceability: 0.780, energy: 0.620, valence: 0.580, acousticness: 0.150, instrumentalness: 0.002, speechiness: 0.180, tempo: 139, key: 4 }
+        }
+      ],
+      artists: [
+        { id: 'art1', name: 'The Weeknd', genres: ['Canadian Pop', 'R&B'], images: [{ url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=400&fit=crop' }], popularity: 98, followers: { total: 75000000 } },
+        { id: 'art2', name: 'Bad Bunny', genres: ['Reggaeton', 'Trap Latino'], images: [{ url: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=400&fit=crop' }], popularity: 97, followers: { total: 72000000 } },
+        { id: 'art3', name: 'Dua Lipa', genres: ['Pop', 'Dance Pop'], images: [{ url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=400&fit=crop' }], popularity: 93, followers: { total: 42000000 } },
+        { id: 'art4', name: 'Taylor Swift', genres: ['Pop'], images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop' }], popularity: 100, followers: { total: 102000000 } }
+      ],
+      playlists: [
+        { id: 'pl1', name: 'Top Hits 2026', tracks_count: 50, image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop' },
+        { id: 'pl2', name: 'Pop Synthwave Vibe', tracks_count: 35, image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=400&fit=crop' },
+        { id: 'pl3', name: 'Latino & Reggaeton Club', tracks_count: 60, image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=400&fit=crop' }
+      ]
+    };
+
+    const NOTE_KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    /* ================= STATE MANAGEMENT ================= */
+    let isDemoMode = true;
+    let accessToken = localStorage.getItem('spotify_access_token') || null;
+    let currentTrackIndex = 0;
+    let activePlaylist = DEMO_DATA.tracks;
+    let radarChartInstance = null;
+    let activeSearchFilter = 'all';
+    let activeTopRange = 'short_term';
+    let activeTopType = 'tracks';
+
+    // HTML Elements
+    const audioElement = document.getElementById('audio-element');
+    const playerPlayIcon = document.getElementById('player-play-icon');
+    const playerProgressBar = document.getElementById('player-progress-bar');
+    const eqVisualizer = document.getElementById('eq-visualizer');
+
+    /* ================= INITIALIZATION ================= */
+    window.onload = function() {
+      // Show redirect URL in UI
+      const redirectUri = window.location.origin + window.location.pathname;
+      document.getElementById('modal-redirect-uri').innerText = redirectUri;
+      document.getElementById('doc-redirect-uri').innerText = redirectUri;
+
+      // Handle OAuth Callback if redirected back with code
+      handleOAuthCallback();
+
+      // Check login state
+      if (accessToken && !isDemoMode) {
+        setConnectionStatus(false);
+      } else {
+        enableDemoMode();
+      }
+
+      // Initialize UI & Player
+      renderSearchResults(DEMO_DATA.tracks);
+      renderTopStats();
+      renderPlaylists();
+      loadTrackIntoPlayer(DEMO_DATA.tracks[0]);
+
+      // Audio element listeners
+      audioElement.addEventListener('timeupdate', updatePlayerProgress);
+      audioElement.addEventListener('ended', playNextTrack);
+    };
+
+    /* ================= TOAST NOTIFICATION UTILITY ================= */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const bgClass = type === 'success' ? 'bg-spotify-green text-black' : (type === 'error' ? 'bg-red-500 text-white' : 'bg-spotify-card text-white border border-spotify-light/40');
+      
+      toast.className = `px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl transition duration-300 pointer-events-auto flex items-center gap-2 ${bgClass}`;
+      toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${message}`;
+      
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    /* ================= PKCE OAUTH 2.0 FLOW ================= */
+    function generateRandomString(length) {
+      let text = '';
+      let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      for (let i = 0; i < length; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+      }
+      return text;
+    }
+
+    async function generateCodeChallenge(codeVerifier) {
+      function base64encode(string) {
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(string)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+      }
+      const encoder = new TextEncoder();
+      const data = encoder.encode(codeVerifier);
+      const digest = await window.crypto.subtle.digest('SHA-256', data);
+      return base64encode(digest);
+    }
+
+    async function initPKCEAuth() {
+      const clientId = document.getElementById('input-client-id').value.trim();
+      if (!clientId) {
+        showToast('Por favor ingresa un Client ID válido', 'error');
+        return;
+      }
+
+      const verifier = generateRandomString(128);
+      const challenge = await generateCodeChallenge(verifier);
+      const redirectUri = window.location.origin + window.location.pathname;
+
+      localStorage.setItem('pkce_verifier', verifier);
+      localStorage.setItem('spotify_client_id', clientId);
+
+      const scope = 'user-read-private user-top-read playlist-read-private';
+      const args = new URLSearchParams({
+        response_type: 'code',
+        client_id: clientId,
+        scope: scope,
+        redirect_uri: redirectUri,
+        code_challenge_method: 'S256',
+        code_challenge: challenge
+      });
+
+      window.location.href = 'https://accounts.spotify.com/authorize?' + args.toString();
+    }
+
+    async function handleOAuthCallback() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      if (!code) return;
+
+      const verifier = localStorage.getItem('pkce_verifier');
+      const clientId = localStorage.getItem('spotify_client_id');
+      const redirectUri = window.location.origin + window.location.pathname;
+
+      if (!verifier || !clientId) return;
+
+      const body = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: verifier
+      });
+
+      try {
+        const response = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        });
+        const data = await response.json();
+        if (data.access_token) {
+          accessToken = data.access_token;
+          localStorage.setItem('spotify_access_token', accessToken);
+          setConnectionStatus(false);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          showToast('¡Conectado exitosamente con Spotify!', 'success');
+        }
+      } catch (err) {
+        showToast('Error al intercambiar código OAuth', 'error');
+      }
+    }
+
+    function saveDirectToken() {
+      const token = document.getElementById('input-direct-token').value.trim();
+      if (!token) {
+        showToast('Token no válido', 'error');
+        return;
+      }
+      accessToken = token;
+      localStorage.setItem('spotify_access_token', accessToken);
+      setConnectionStatus(false);
+      closeConfigModal();
+      showToast('Access Token manual guardado', 'success');
+    }
+
+    function setConnectionStatus(demo) {
+      isDemoMode = demo;
+      const badge = document.getElementById('connection-badge');
+      const badgeText = document.getElementById('badge-text');
+
+      if (isDemoMode) {
+        badge.className = "px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/30";
+        badgeText.innerText = "Modo Demo Activo";
+      } else {
+        badge.className = "px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-2 bg-spotify-green/10 text-spotify-green border border-spotify-green/30";
+        badgeText.innerText = "Conectado a Spotify API";
+      }
+    }
+
+    function enableDemoMode() {
+      setConnectionStatus(true);
+      closeConfigModal();
+      showToast('Modo Demo activado', 'info');
+    }
+
+    function toggleDemoMode() {
+      enableDemoMode();
+    }
+
+    /* ================= MODAL CONTROLS ================= */
+    function openConfigModal() {
+      document.getElementById('config-modal').classList.remove('hidden');
+    }
+
+    function closeConfigModal() {
+      document.getElementById('config-modal').classList.add('hidden');
+    }
+
+    function copyRedirectUri() {
+      const uri = window.location.origin + window.location.pathname;
+      const tempInput = document.createElement('input');
+      tempInput.value = uri;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      showToast('Redirect URI copiado al portapapeles', 'success');
+    }
+
+    /* ================= NAVIGATION SYSTEM ================= */
+    function switchTab(tabId) {
+      document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-spotify-card', 'text-white', 'border-l-4', 'border-spotify-green');
+        btn.classList.add('text-spotify-subtext');
+      });
+
+      const activeSection = document.getElementById(`section-${tabId}`);
+      const activeNav = document.getElementById(`nav-${tabId}`);
+
+      if (activeSection) activeSection.classList.remove('hidden');
+      if (activeNav) {
+        activeNav.classList.add('bg-spotify-card', 'text-white', 'border-l-4', 'border-spotify-green');
+        activeNav.classList.remove('text-spotify-subtext');
+      }
+
+      if (tabId === 'features') {
+        renderRadarChart(DEMO_DATA.tracks[currentTrackIndex].features);
+      }
+    }
+
+    /* ================= MUSIC SEARCH LOGIC ================= */
+    function handleSearchKey(event) {
+      if (event.key === 'Enter') executeSearch();
+    }
+
+    function setSearchFilter(filter) {
+      activeSearchFilter = filter;
+      ['all', 'track', 'artist'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if (f === filter) {
+          btn.className = "px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-black transition";
+        } else {
+          btn.className = "px-4 py-1.5 rounded-full text-xs font-semibold bg-spotify-card text-spotify-subtext hover:text-white transition";
+        }
+      });
+      executeSearch();
+    }
+
+    async function executeSearch() {
+      const query = document.getElementById('search-input').value.trim().toLowerCase();
+      
+      if (isDemoMode || !accessToken) {
+        // Mock Search
+        let filtered = DEMO_DATA.tracks;
+        if (query) {
+          filtered = DEMO_DATA.tracks.filter(t => 
+            t.name.toLowerCase().includes(query) || 
+            t.artists.some(a => a.name.toLowerCase().includes(query))
+          );
+        }
+        renderSearchResults(filtered);
+      } else {
+        // Real Spotify API Search
+        if (!query) return;
+        try {
+          const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track,artist&limit=10`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          const data = await res.json();
+          if (data.tracks) {
+            renderSearchResults(data.tracks.items);
+          }
+        } catch (e) {
+          showToast('Error al buscar en Spotify API', 'error');
+        }
+      }
+    }
+
+    function renderSearchResults(items) {
+      const grid = document.getElementById('search-results');
+      grid.innerHTML = '';
+
+      if (items.length === 0) {
+        grid.innerHTML = `<p class="col-span-full text-center text-spotify-subtext text-sm py-10">No se encontraron resultados.</p>`;
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const cover = item.album ? item.album.images[0]?.url : (item.images ? item.images[0]?.url : 'https://placehold.co/300x300/282828/fff?text=No+Cover');
+        const title = item.name;
+        const subtitle = item.artists ? item.artists.map(a => a.name).join(', ') : 'Artista Spotify';
+
+        const card = document.createElement('div');
+        card.className = "bg-spotify-dark/90 p-3.5 rounded-xl border border-spotify-card/50 hover:bg-spotify-card transition duration-200 group relative cursor-pointer flex flex-col justify-between";
+        card.innerHTML = `
+          <div class="relative mb-3 aspect-square rounded-lg overflow-hidden">
+            <img src="${cover}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${title}">
+            <button onclick="playTrackFromList(${index})" class="absolute right-2 bottom-2 bg-spotify-green hover:bg-spotify-hover text-black w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-2 transition duration-300 shadow-xl">
+              <i class="fa-solid fa-play text-sm ml-0.5"></i>
+            </button>
+          </div>
+          <div>
+            <h4 class="font-bold text-sm text-white truncate mb-1">${title}</h4>
+            <p class="text-xs text-spotify-subtext truncate">${subtitle}</p>
+          </div>
+          <button onclick="inspectAudioFeatures(${index})" class="mt-3 w-full py-1.5 bg-spotify-card hover:bg-spotify-light rounded-lg text-[11px] text-spotify-subtext hover:text-white transition flex items-center justify-center gap-1">
+            <i class="fa-solid fa-chart-line text-spotify-green"></i> Inspeccionar Audio
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    /* ================= AUDIO FEATURES ANALYSIS ================= */
+    function inspectAudioFeatures(index) {
+      const track = DEMO_DATA.tracks[index] || DEMO_DATA.tracks[0];
+      currentTrackIndex = index;
+
+      document.getElementById('feat-track-cover').src = track.album.images[0].url;
+      document.getElementById('feat-track-title').innerText = track.name;
+      document.getElementById('feat-track-artist').innerText = `${track.artists[0].name} • ${track.album.name}`;
+      
+      const features = track.features;
+      document.getElementById('badge-tempo').innerHTML = `<i class="fa-solid fa-drum mr-1"></i> ${Math.round(features.tempo)} BPM`;
+      document.getElementById('badge-key').innerHTML = `<i class="fa-solid fa-music mr-1"></i> Tono: ${NOTE_KEYS[features.key] || 'C'}`;
+      document.getElementById('badge-pop').innerHTML = `<i class="fa-solid fa-fire mr-1"></i> Popularidad: ${track.popularity}/100`;
+
+      renderRadarChart(features);
+      renderFeatureBars(features);
+      switchTab('features');
+    }
+
+    function renderRadarChart(features) {
+      const ctx = document.getElementById('radarChart').getContext('2d');
+      if (radarChartInstance) radarChartInstance.destroy();
+
+      radarChartInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: ['Bailabilidad', 'Energía', 'Positividad', 'Acusticidad', 'Instrumentalidad', 'Discurso'],
+          datasets: [{
+            label: 'Métricas de Audio',
+            data: [
+              features.danceability,
+              features.energy,
+              features.valence,
+              features.acousticness,
+              features.instrumentalness,
+              features.speechiness
+            ],
+            backgroundColor: 'rgba(29, 185, 84, 0.25)',
+            borderColor: '#1DB954',
+            pointBackgroundColor: '#1DB954',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#1DB954',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+              grid: { color: 'rgba(255, 255, 255, 0.1)' },
+              pointLabels: { color: '#a7a7a7', font: { size: 11 } },
+              ticks: { display: false },
+              suggestedMin: 0,
+              suggestedMax: 1
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    function renderFeatureBars(features) {
+      const container = document.getElementById('features-progress-container');
+      const items = [
+        { name: 'Bailabilidad', val: features.danceability, color: 'bg-spotify-green' },
+        { name: 'Energía', val: features.energy, color: 'bg-yellow-400' },
+        { name: 'Positividad (Valence)', val: features.valence, color: 'bg-pink-500' },
+        { name: 'Acusticidad', val: features.acousticness, color: 'bg-blue-400' }
+      ];
+
+      container.innerHTML = items.map(item => `
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-spotify-subtext">${item.name}</span>
+            <span class="font-mono text-white">${Math.round(item.val * 100)}%</span>
+          </div>
+          <div class="h-2 w-full bg-spotify-black rounded-full overflow-hidden">
+            <div class="h-full ${item.color} rounded-full transition-all duration-500" style="width: ${item.val * 100}%"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function playCurrentAnalyzedTrack() {
+      playTrackFromList(currentTrackIndex);
+    }
+
+    /* ================= TOP STATS SECTION ================= */
+    function setTopTimeRange(range) {
+      activeTopRange = range;
+      ['short', 'medium', 'long'].forEach(r => {
+        const btn = document.getElementById(`range-${r}`);
+        if (`${r}_term` === range) {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-spotify-light transition";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-spotify-subtext hover:text-white transition";
+        }
+      });
+      renderTopStats();
+    }
+
+    function setTopType(type) {
+      activeTopType = type;
+      const btnTracks = document.getElementById('top-type-tracks');
+      const btnArtists = document.getElementById('top-type-artists');
+
+      if (type === 'tracks') {
+        btnTracks.className = "px-4 py-2 rounded-lg text-sm font-bold bg-spotify-green text-black transition";
+        btnArtists.className = "px-4 py-2 rounded-lg text-sm font-bold bg-spotify-card text-spotify-subtext hover:text-white transition";
+      } else {
+        btnArtists.className = "px-4 py-2 rounded-lg text-sm font-bold bg-spotify-green text-black transition";
+        btnTracks.className = "px-4 py-2 rounded-lg text-sm font-bold bg-spotify-card text-spotify-subtext hover:text-white transition";
+      }
+      renderTopStats();
+    }
+
+    function renderTopStats() {
+      const container = document.getElementById('top-items-container');
+      container.innerHTML = '';
+
+      if (activeTopType === 'tracks') {
+        DEMO_DATA.tracks.forEach((track, idx) => {
+          const row = document.createElement('div');
+          row.className = "bg-spotify-dark/80 hover:bg-spotify-card p-3 rounded-xl border border-spotify-card/40 flex items-center justify-between transition group";
+          row.innerHTML = `
+            <div class="flex items-center space-x-4">
+              <span class="text-sm font-bold w-6 text-center ${idx < 3 ? 'text-spotify-green' : 'text-spotify-subtext'}">${idx + 1}</span>
+              <img src="${track.album.images[0].url}" class="w-11 h-11 rounded-lg object-cover shadow" alt="${track.name}">
+              <div>
+                <h4 class="font-bold text-sm text-white group-hover:text-spotify-green transition">${track.name}</h4>
+                <p class="text-xs text-spotify-subtext">${track.artists[0].name}</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-xs font-mono text-spotify-subtext hidden sm:inline"><i class="fa-solid fa-fire text-yellow-500 mr-1"></i> ${track.popularity} pop</span>
+              <button onclick="playTrackFromList(${idx})" class="w-8 h-8 rounded-full bg-spotify-card group-hover:bg-spotify-green text-white group-hover:text-black flex items-center justify-center transition">
+                <i class="fa-solid fa-play text-xs ml-0.5"></i>
+              </button>
+            </div>
+          `;
+          container.appendChild(row);
+        });
+      } else {
+        DEMO_DATA.artists.forEach((artist, idx) => {
+          const row = document.createElement('div');
+          row.className = "bg-spotify-dark/80 hover:bg-spotify-card p-3 rounded-xl border border-spotify-card/40 flex items-center justify-between transition group";
+          row.innerHTML = `
+            <div class="flex items-center space-x-4">
+              <span class="text-sm font-bold w-6 text-center ${idx < 3 ? 'text-spotify-green' : 'text-spotify-subtext'}">${idx + 1}</span>
+              <img src="${artist.images[0].url}" class="w-11 h-11 rounded-full object-cover shadow" alt="${artist.name}">
+              <div>
+                <h4 class="font-bold text-sm text-white group-hover:text-spotify-green transition">${artist.name}</h4>
+                <p class="text-xs text-spotify-subtext">${artist.genres.join(', ')}</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono text-spotify-subtext">${(artist.followers.total / 1000000).toFixed(1)}M oyentes</span>
+          `;
+          container.appendChild(row);
+        });
+      }
+    }
+
+    /* ================= PLAYLISTS SECTION ================= */
+    function renderPlaylists() {
+      const grid = document.getElementById('playlists-grid');
+      grid.innerHTML = '';
+
+      DEMO_DATA.playlists.forEach((pl) => {
+        const card = document.createElement('div');
+        card.className = "bg-spotify-dark/90 p-4 rounded-2xl border border-spotify-card/50 hover:bg-spotify-card transition group cursor-pointer";
+        card.onclick = () => openPlaylistDetail(pl);
+        card.innerHTML = `
+          <img src="${pl.image}" class="w-full aspect-square rounded-xl object-cover mb-3 shadow-lg group-hover:scale-105 transition" alt="${pl.name}">
+          <h4 class="font-bold text-sm text-white truncate">${pl.name}</h4>
+          <p class="text-xs text-spotify-subtext mt-1">${pl.tracks_count} Canciones</p>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function openPlaylistDetail(playlist) {
+      const detail = document.getElementById('playlist-detail');
+      document.getElementById('playlist-detail-title').innerText = playlist.name;
+      const tbody = document.getElementById('playlist-tracks-body');
+      tbody.innerHTML = '';
+
+      DEMO_DATA.tracks.forEach((track, i) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-spotify-card/50 transition cursor-pointer border-b border-spotify-card/20";
+        tr.onclick = () => playTrackFromList(i);
+        tr.innerHTML = `
+          <td class="py-3 px-2 font-mono text-xs text-spotify-subtext">${i + 1}</td>
+          <td class="py-3 px-4 flex items-center space-x-3">
+            <img src="${track.album.images[0].url}" class="w-9 h-9 rounded object-cover">
+            <div>
+              <p class="font-bold text-white text-xs">${track.name}</p>
+              <p class="text-[11px] text-spotify-subtext">${track.artists[0].name}</p>
+            </div>
+          </td>
+          <td class="py-3 px-4 text-xs text-spotify-subtext">${track.album.name}</td>
+          <td class="py-3 px-2 text-right font-mono text-xs text-spotify-subtext">3:20</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      detail.classList.remove('hidden');
+      detail.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closePlaylistDetail() {
+      document.getElementById('playlist-detail').classList.add('hidden');
+    }
+
+    /* ================= CONTINUOUS AUDIO PLAYER ================= */
+    function loadTrackIntoPlayer(track) {
+      document.getElementById('player-cover').src = track.album.images[0].url;
+      document.getElementById('player-title').innerText = track.name;
+      document.getElementById('player-artist').innerText = track.artists.map(a => a.name).join(', ');
+      
+      if (track.preview_url) {
+        audioElement.src = track.preview_url;
+      }
+    }
+
+    function playTrackFromList(index) {
+      currentTrackIndex = index;
+      const track = DEMO_DATA.tracks[index];
+      if (!track) return;
+
+      loadTrackIntoPlayer(track);
+      audioElement.play();
+      playerPlayIcon.className = "fa-solid fa-pause text-xs";
+      eqVisualizer.classList.remove('hidden');
+    }
+
+    function togglePlay() {
+      if (!audioElement.src) {
+        playTrackFromList(0);
+        return;
+      }
+
+      if (audioElement.paused) {
+        audioElement.play();
+        playerPlayIcon.className = "fa-solid fa-pause text-xs";
+        eqVisualizer.classList.remove('hidden');
+      } else {
+        audioElement.pause();
+        playerPlayIcon.className = "fa-solid fa-play text-xs ml-0.5";
+        eqVisualizer.classList.add('hidden');
+      }
+    }
+
+    function playNextTrack() {
+      currentTrackIndex = (currentTrackIndex + 1) % DEMO_DATA.tracks.length;
+      playTrackFromList(currentTrackIndex);
+    }
+
+    function playPrevTrack() {
+      currentTrackIndex = (currentTrackIndex - 1 + DEMO_DATA.tracks.length) % DEMO_DATA.tracks.length;
+      playTrackFromList(currentTrackIndex);
+    }
+
+    function updatePlayerProgress() {
+      if (!audioElement.duration) return;
+      const pct = (audioElement.currentTime / audioElement.duration) * 100;
+      playerProgressBar.style.width = `${pct}%`;
+
+      const currMin = Math.floor(audioElement.currentTime / 60);
+      const currSec = Math.floor(audioElement.currentTime % 60);
+      document.getElementById('player-curr-time').innerText = `${currMin}:${currSec < 10 ? '0' : ''}${currSec}`;
+      
+      const durMin = Math.floor(audioElement.duration / 60);
+      const durSec = Math.floor(audioElement.duration % 60);
+      document.getElementById('player-dur-time').innerText = `${durMin}:${durSec < 10 ? '0' : ''}${durSec}`;
+    }
+
+    function seekAudio(event) {
+      const bar = event.currentTarget;
+      const rect = bar.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const pct = clickX / rect.width;
+      if (audioElement.duration) {
+        audioElement.currentTime = pct * audioElement.duration;
+      }
+    }
+
+    function changeVolume(val) {
+      audioElement.volume = val;
+    }
+  </script>
+</body>
+</html>
